@@ -1,1 +1,1 @@
-# AICoreProject_DataCollection
+# Data Collection Pipeline
