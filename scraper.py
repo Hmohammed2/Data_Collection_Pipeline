@@ -14,13 +14,14 @@ class Scraper:
 
     url = "https://steamplayercount.com/popular"
 
-    def __init__(self, response=None, get_url=url):
+    def __init__(self, response=None, get_url=url, page_number: int = 1):
         self.response = self.get_status if response is None else response
         self.get_url = get_url
+        self.page_number = page_number
 
     def get_status(self):
         try:
-            r = requests.get(self.get_url)
+            r = requests.get(self.pagination(self.page_number))
             return r
         except requests.exceptions.Timeout:
             print("Session Timeout")
@@ -28,6 +29,12 @@ class Scraper:
         except requests.exceptions.TooManyRedirects:
             print("Url is bad try a different one")
             # Tell the user their URL was bad and try a different one
+        except requests.exceptions.HTTPError:
+            if r.status_code == 404:
+                print("URL doesnt exist")
+                return None
+            else:
+                raise
         except requests.exceptions.RequestException as e:
             # catastrophic error. bail.
             raise SystemExit(e)
@@ -42,6 +49,9 @@ class Scraper:
         # prints the html in a more readable format
         soup = self.return_soup()
         return soup.prettify()
+
+    def pagination(self, page_num:int):
+        return f"{self.get_url}?page={page_num}"
 
     def extract_into_list(self, tag=str, class_str=None, index=None):
         empty_list = []
@@ -59,11 +69,18 @@ class Scraper:
 
         return empty_list
 
-    def pagination(self):
-        pass
 
-scrap = Scraper()
+if __name__ == "__main__":
+    page_counter = 1
+    scraper = Scraper()
+    while True:
+        try:
+            page_counter += 1
+            print(scraper.extract_into_list("a", "app-link"))
+        except Exception as ex:
+            print(ex)
+            print("probably last page:", page_counter)
+            break
 
-print(scrap.extract_into_list("a", "app-link"))
-print(scrap.extract_into_list("td",None,2))
+
 
