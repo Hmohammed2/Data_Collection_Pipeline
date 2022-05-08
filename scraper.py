@@ -29,12 +29,6 @@ class Scraper:
         except requests.exceptions.TooManyRedirects:
             print("Url is bad try a different one")
             # Tell the user their URL was bad and try a different one
-        except requests.exceptions.HTTPError:
-            if r.status_code == 404:
-                print("URL doesnt exist")
-                return None
-            else:
-                raise
         except requests.exceptions.RequestException as e:
             # catastrophic error. bail.
             raise SystemExit(e)
@@ -53,19 +47,25 @@ class Scraper:
     def pagination(self, page_num:int):
         return f"{self.get_url}?page={page_num}"
 
-    def extract_into_list(self, tag=str, class_str=None, index=None):
+    def extract_into_list(self, tag=str, class_str=None, index=None, soup=None):
         empty_list = []
-        soup = self.return_soup()
+
+        soup = self.return_soup() if soup is None else soup
+
         all_tags = soup.find_all(tag, class_=class_str)
 
-        if index is None:
-            for container in all_tags:
-                name = container.text
-                empty_list.append(name)
+        if not isinstance(soup, BeautifulSoup):
+            raise TypeError
         else:
-            for container in all_tags[index]:
-                name = container.text
-                empty_list.append(name)
+
+            if index is None:
+                for container in all_tags:
+                    name = container.text
+                    empty_list.append(name)
+            else:
+                for container in all_tags[index]:
+                    name = container.text
+                    empty_list.append(name)
 
         return empty_list
 
