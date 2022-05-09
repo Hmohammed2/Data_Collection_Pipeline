@@ -2,8 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import re
-import openpyxl
-
+from os.path import basename
+import urllib.request
 
 class Data:
     def __init__(self, product_name=None, price=None, summary=None, *args, **kwargs):
@@ -72,8 +72,15 @@ class Scraper:
             if index is None:
                 for container in all_tags:
                     name = container.text
-                    if re.search(r"\w+[\s]|[£]\d+", name):
-                        empty_list.append(name)
+                    if tag is "img":
+                        img = "\n".join(set(container['src'] for container in all_tags))
+                        with open(basename(img), "wb") as f:
+                            f.write(requests.get(img).content)
+                            df = f.read()
+                            print(df)
+                    else:
+                        if re.search(r"\w+[\s]|[£]\d+", name):
+                            empty_list.append(name)
             else:
                 for container in all_tags[index]:
                     name = container.text
@@ -96,6 +103,7 @@ def main(iterate=False):
                                                          "-tax": True})
                 summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data)
                 data_fields = Data(product_name, price, summary)
+                df = pd.DataFrame(data_fields.to_dict())
                 print(data_fields)
             except Exception as ex:
                 print(ex)
@@ -104,17 +112,17 @@ def main(iterate=False):
     else:
         try:
             data = scraper.return_soup(page_counter)
-            product_name = scraper.extract_into_list(tag="a", href=True, soup=data, attrs={"data-event-type": True})
-            price = scraper.extract_into_list(tag="span", class_str="price", soup=data, attrs={"data-product-price-with"
-                                                                                               "-tax": True})
-            summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data)
-            data_fields = Data(product_name, price, summary)
-            df = pd.DataFrame(data_fields.to_dict())
-            df.to_excel("Output.xlsx")
-            print(df)
+            #product_name = scraper.extract_into_list(tag="a", href=True, soup=data, attrs={"data-event-type": True})
+            #price = scraper.extract_into_list(tag="span", class_str="price", soup=data, attrs={"data-product-price-with"
+            #                                                                                  "-tax": True})
+            #summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data)
+            img = scraper.extract_into_list(tag="img", soup=data)
+            #data_fields = Data(product_name, price, summary)
+            #df = pd.DataFrame(data_fields.to_dict())
         except Exception as ex:
             print(ex)
 
+class_str="card-img-container"
 
 if __name__ == "__main__":
     main()
