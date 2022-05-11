@@ -2,11 +2,11 @@ import requests
 from bs4 import BeautifulSoup
 import pandas as pd
 import re
-from os.path import basename
-import urllib.request
+from os.path import basename, join
+
 
 class Data:
-    def __init__(self, product_name=None, price=None, summary=None, *args, **kwargs):
+    def __init__(self, product_name=None, price=None, summary=None):
         self.product_name = product_name
         self.price = price
         self.summary = summary
@@ -73,11 +73,17 @@ class Scraper:
                 for container in all_tags:
                     name = container.text
                     if tag is "img":
-                        img = "\n".join(set(container['src'] for container in all_tags))
-                        with open(basename(img), "wb") as f:
-                            f.write(requests.get(img).content)
-                            df = f.read()
-                            print(df)
+                        if "http" in container.get('src'):
+                            path = r'C:\Users\Hamza Mohammed\PycharmProjects\AICoreProject_DataCollection\images'
+                            img = container.get('src')
+                            print(img)
+                            filename = join(path, img)
+                            with open(basename(img), "wb") as f:
+                                f.write(requests.get(img).content)
+                                print(f)
+                        else:
+                            img = container['src']
+                            print(img)
                     else:
                         if re.search(r"\w+[\s]|[£]\d+", name):
                             empty_list.append(name)
@@ -112,17 +118,17 @@ def main(iterate=False):
     else:
         try:
             data = scraper.return_soup(page_counter)
-            #product_name = scraper.extract_into_list(tag="a", href=True, soup=data, attrs={"data-event-type": True})
-            #price = scraper.extract_into_list(tag="span", class_str="price", soup=data, attrs={"data-product-price-with"
+            # product_name = scraper.extract_into_list(tag="a", href=True, soup=data, attrs={"data-event-type": True})
+            # price = scraper.extract_into_list(tag="span", class_str="price", soup=data, attrs={"data-product-price-with"
             #                                                                                  "-tax": True})
-            #summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data)
+            # summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data)
             img = scraper.extract_into_list(tag="img", soup=data)
-            #data_fields = Data(product_name, price, summary)
-            #df = pd.DataFrame(data_fields.to_dict())
+            # data_fields = Data(product_name, price, summary)
+            # df = pd.DataFrame(data_fields.to_dict())
         except Exception as ex:
             print(ex)
 
-class_str="card-img-container"
+# class_str="card-img-container"
 
 if __name__ == "__main__":
     main()
