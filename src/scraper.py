@@ -1,8 +1,10 @@
 import requests
 from bs4 import BeautifulSoup
+import json
 import pandas as pd
 import re
-from os.path import basename, join
+import os
+from os.path import join
 import tkinter as tk
 from tkinter import simpledialog
 import uuid as uid
@@ -10,7 +12,7 @@ import uuid as uid
 
 class Data:
     # constructor with datafields.
-    def __init__(self, uuid, product_id, product_name=None, price=None, summary=None):
+    def __init__(self, uuid, product_id=None, product_name=None, price=None, summary=None):
         self.product_name = product_name
         self.price = price
         self.summary = summary
@@ -37,12 +39,17 @@ class Scraper:
     @staticmethod
     def gui_search(query: str):
         root = tk.Tk()
-
         root.withdraw()
-        # the input dialog
-        user_inp = simpledialog.askstring(title="Enter Product name",
-                                          prompt=query)
-        return user_inp
+
+        while True:
+            try:
+                # the input dialog
+                user_inp = simpledialog.askstring(title="Enter Product name",
+                                                  prompt=query)
+                return user_inp
+
+            except ValueError as e:
+                raise
 
     def get_status(self, page_number=None):
         try:
@@ -59,6 +66,22 @@ class Scraper:
             # catastrophic error. bail.
             raise SystemExit(e)
 
+    @staticmethod
+    def store_data(data: dict):
+        # method stores raw data into a local directory
+        path = "/home/hamza/PycharmProjects/AICoreProject_DataCollection/raw_data"
+        is_exist = os.path.exists(path)
+
+        if not is_exist:
+            os.makedirs(path)
+            print("New directory created!")
+        if not isinstance(data, dict):
+            raise TypeError
+        else:
+            with open(join(path, "data.json"), "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+                print("json file created!")
+
     def search_product(self):
         return f"{self.get_url}search.php?search_query={self.search_query}&section=product"
 
@@ -74,9 +97,24 @@ class Scraper:
         return soup.prettify()
 
     def pagination(self, page_num: int):
+        # Allows user to extract data through each page, by manipulating e url directly
         return f"{self.get_url}search.php?page={page_num}&section=product&search_query={self.search_query}"
 
-    def extract_into_list(self, tag: str, class_str=None, href=False, index=None, soup=None, attrs=None):
+    def extract_css_selector(self, soup_obj=None, text: str = None, attribute=None):
+        empty_list = []
+
+        soup_obj = self.return_soup() if soup_obj is None else soup_obj
+
+        css_selector = soup_obj.select(text)
+
+        for container in css_selector:
+            empty_list.append(container[attribute])
+        return empty_list
+
+    def extract_into_list(self, tag: str = None, class_str=None, href=False, index=None, soup=None, attrs=None,
+                          css_selector=None):
+        # Custom function built to extract data from website. Arguments correlate to the Beautifulsoup "find_all"
+        # method. User can customize what they want to extract
         empty_list = []
 
         soup = self.return_soup() if soup is None else soup
@@ -92,10 +130,10 @@ class Scraper:
                     name = container.text
                     if tag is "img":
                         if "http" in container.get('src'):
-                            path = r"/images"
+                            path = "/home/hamza/PycharmProjects/AICoreProject_DataCollection/images"
                             img = container.get('src')
                             print(img)
-                            with open(path, "wb") as f:
+                            with open(join(path, img), "wb") as f:
                                 f.write(requests.get(img).content)
                                 print(f)
                         else:
@@ -104,14 +142,18 @@ class Scraper:
                     else:
                         if re.search(r"\w+[\s]|[£]\d+", name):
                             empty_list.append(name)
+
             else:
                 for container in all_tags[index]:
                     name = container.text
-                    empty_list.append(name)
+                    if re.search(r"\w+[\s]|[£]\d+", name):
+                        empty_list.append(name)
 
         return empty_list
 
-    def generate_id(self, results: list):
+    @staticmethod
+    def generate_id(results: list = None):
+        # generate unique global id with UUID package.
         unique_id = []
 
         for id in enumerate(results):
@@ -144,22 +186,24 @@ def main(iterate=False):
     else:
         try:
             product_name = scraper.extract_into_list(tag="a", href=True, attrs={"data-event-type": True})
-            unique_id = scrape.generate_id(product_name)
+            product_id = scraper.extract_css_selector(text="li.product > article", attribute='data-entity-id')
+            unique_id = scraper.generate_id(product_name)
             price = scraper.extract_into_list(tag="span", class_str="price", attrs={"data-product-price-with"
-                                                                                               "-tax": True})
+                                                                                    "-tax": True})
             summary = scraper.extract_into_list(tag="p", class_str="card-summary")
             # img = scraper.extract_into_list(tag="img", soup=data)
-            data_fields = Data(unique_id, product_name,price,summary)
-            df = pd.DataFrame(data_fields.to_dict())
-            print(df)
+            data_fields = Data(unique_id, product_id, product_name, price, summary)
+            scraper.store_data(data_fields.to_dict())
         except Exception as ex:
             print(ex)
+            raise
 
-
-# class_str="card-img-container"
 
 if __name__ == "__main__":
-    scrape = Scraper()
-    product_name = scrape.extract_into_list(attrs={"data-entity-id": True})
-    print(product_name)
-    # attrs = {"data-entity-id": True}
+    main()
+    # scraper = Scraper()
+    # id = scraper.extract_css_selector(text="li.product > article", attribute='data-entity-id')
+    # print(id)
+
+    li.product: nth - child(2) > article:nth - child(1) > figure: nth - child(1) > a:nth - child(1) > div: nth - child(
+        1) > img:nth - child(1)
