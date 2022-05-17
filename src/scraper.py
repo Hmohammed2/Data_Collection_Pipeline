@@ -12,20 +12,21 @@ import uuid as uid
 
 class Data:
     # constructor with datafields.
-    def __init__(self, uuid, product_id=None, product_name=None, price=None, summary=None):
+    def __init__(self, uuid, product_id=None, product_name=None, price=None, summary=None, images=None):
         self.product_name = product_name
         self.price = price
         self.summary = summary
         self.uuid = uuid
         self.product_id = product_id
+        self.images = images
 
     def __repr__(self):
         return f"Unique ID={self.uuid}, Product ID={self.product_id} Product={self.product_name}, " \
-               f"Price={self.price}, Summary={self.summary}"
+               f"Price={self.price}, Summary={self.summary}, Images={self.images}"
 
     def to_dict(self):
         return {"Unique iD": self.uuid, "Product ID": self.product_id, "Product": self.product_name,
-                "Price": self.price, "Summary": self.summary}
+                "Price": self.price, "Summary": self.summary, "Images": self.images}
 
 
 class Scraper:
@@ -106,9 +107,18 @@ class Scraper:
         soup_obj = self.return_soup() if soup_obj is None else soup_obj
 
         css_selector = soup_obj.select(text)
+        counter = 0
 
         for container in css_selector:
-            empty_list.append(container[attribute])
+            if "http" in container[attribute]:
+                counter += 1
+                path = "/home/hamza/PycharmProjects/AICoreProject_DataCollection/images"
+                img = container[attribute]
+                with open(join(path, f"image{counter}.jpeg"), "wb") as f:
+                    f.write(requests.get(img).content)
+                    empty_list.append(container[attribute])
+            else:
+                empty_list.append(container[attribute])
         return empty_list
 
     def extract_into_list(self, tag: str = None, class_str=None, href=False, index=None, soup=None, attrs=None,
@@ -128,21 +138,8 @@ class Scraper:
             if index is None:
                 for container in all_tags:
                     name = container.text
-                    if tag is "img":
-                        if "http" in container.get('src'):
-                            path = "/home/hamza/PycharmProjects/AICoreProject_DataCollection/images"
-                            img = container.get('src')
-                            print(img)
-                            with open(join(path, img), "wb") as f:
-                                f.write(requests.get(img).content)
-                                print(f)
-                        else:
-                            img = container['src']
-                            print(img)
-                    else:
-                        if re.search(r"\w+[\s]|[£]\d+", name):
-                            empty_list.append(name)
-
+                    if re.search(r"\w+[\s]|[£]\d+", name):
+                        empty_list.append(name)
             else:
                 for container in all_tags[index]:
                     name = container.text
@@ -191,8 +188,8 @@ def main(iterate=False):
             price = scraper.extract_into_list(tag="span", class_str="price", attrs={"data-product-price-with"
                                                                                     "-tax": True})
             summary = scraper.extract_into_list(tag="p", class_str="card-summary")
-            # img = scraper.extract_into_list(tag="img", soup=data)
-            data_fields = Data(unique_id, product_id, product_name, price, summary)
+            img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img", attribute="data-src")
+            data_fields = Data(unique_id, product_id, product_name, price, summary, img)
             scraper.store_data(data_fields.to_dict())
         except Exception as ex:
             print(ex)
@@ -201,9 +198,3 @@ def main(iterate=False):
 
 if __name__ == "__main__":
     main()
-    # scraper = Scraper()
-    # id = scraper.extract_css_selector(text="li.product > article", attribute='data-entity-id')
-    # print(id)
-
-    li.product: nth - child(2) > article:nth - child(1) > figure: nth - child(1) > a:nth - child(1) > div: nth - child(
-        1) > img:nth - child(1)
