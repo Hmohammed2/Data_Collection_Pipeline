@@ -8,6 +8,7 @@ from os.path import join
 import tkinter as tk
 from tkinter import simpledialog
 import uuid as uid
+import sys
 
 
 class Data:
@@ -25,6 +26,7 @@ class Data:
                f"Price={self.price}, Summary={self.summary}, Images={self.images}"
 
     def to_dict(self):
+        # Method converts list into dictionary which will be later used to store in json file
         return {"Unique iD": self.uuid, "Product ID": self.product_id, "Product": self.product_name,
                 "Price": self.price, "Summary": self.summary, "Images": self.images}
 
@@ -32,7 +34,7 @@ class Data:
 class Scraper:
     default_url = "https://www.arcadeworlduk.com/"
 
-    def __init__(self, response=None, get_url=default_url, **kwargs):
+    def __init__(self, response=None, get_url=default_url):
         self.response = self.get_status if response is None else response
         self.get_url = get_url
         self.search_query = self.gui_search("Enter product name: ")
@@ -42,15 +44,12 @@ class Scraper:
         root = tk.Tk()
         root.withdraw()
 
-        while True:
-            try:
-                # the input dialog
-                user_inp = simpledialog.askstring(title="Enter Product name",
-                                                  prompt=query)
-                return user_inp
-
-            except ValueError as e:
-                raise
+        user_inp = simpledialog.askstring(title="Enter Product name",
+                                          prompt=query)
+        if user_inp is None:
+            gui_search()
+        else:
+            return user_inp
 
     def get_status(self, page_number=None):
         try:
@@ -69,8 +68,12 @@ class Scraper:
 
     @staticmethod
     def store_data(data: dict):
-        # method stores raw data into a local directory
-        path = "/home/hamza/PycharmProjects/AICoreProject_DataCollection/raw_data"
+        # method stores raw data into a local directory. Working directory is found dynamically and stores it in a
+        # json file in a directory labelled raw_data.
+
+        path =f"{os.getcwd()}/raw_data"
+
+        # File path is validated first to see if it eists
         is_exist = os.path.exists(path)
 
         if not is_exist:
@@ -112,7 +115,7 @@ class Scraper:
         for container in css_selector:
             if "http" in container[attribute]:
                 counter += 1
-                path = "/home/hamza/PycharmProjects/AICoreProject_DataCollection/images"
+                path = f"{os.getcwd()}/images"
                 img = container[attribute]
                 with open(join(path, f"image{counter}.jpeg"), "wb") as f:
                     f.write(requests.get(img).content)
@@ -121,8 +124,7 @@ class Scraper:
                 empty_list.append(container[attribute])
         return empty_list
 
-    def extract_into_list(self, tag: str = None, class_str=None, href=False, index=None, soup=None, attrs=None,
-                          css_selector=None):
+    def extract_into_list(self, tag: str = None, class_str=None, href=False, index=None, soup=None, attrs=None):
         # Custom function built to extract data from website. Arguments correlate to the Beautifulsoup "find_all"
         # method. User can customize what they want to extract
         empty_list = []
@@ -168,14 +170,20 @@ def main(iterate=False):
             try:
                 page_counter += 1
                 data = scraper.return_soup(page_counter)
-                product_name = scraper.extract_into_list(tag="a", href=True, soup=data, attrs={"data-event-type": True})
-                price = scraper.extract_into_list(tag="span", class_str="price", soup=data,
-                                                  attrs={"data-product-price-with"
-                                                         "-tax": True})
+                product_name = scraper.extract_into_list(tag="a", href=True, attrs={"data-event-type": True}, soup=data)
+                product_id = scraper.extract_css_selector(text="li.product > article", attribute='data-entity-id')
+                unique_id = scraper.generate_id(product_name)
+                price = scraper.extract_into_list(tag="span", class_str="price", attrs={"data-product-price-with"
+                                                                                        "-tax": True}, soup=data)
                 summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data)
-                data_fields = Data(product_name, price, summary)
-                df = pd.DataFrame(data_fields.to_dict())
-                print(data_fields)
+                img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img",
+                                                   attribute="data-src")
+                data_fields = Data(unique_id, product_id, product_name, price, summary, img)
+                if bool(data_fields.to_dict()):
+                    print("No Results!")
+                    break
+                else:
+                    scraper.store_data(data_fields.to_dict())
             except Exception as ex:
                 print(ex)
                 print("probably last page:", page_counter)
@@ -190,11 +198,16 @@ def main(iterate=False):
             summary = scraper.extract_into_list(tag="p", class_str="card-summary")
             img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img", attribute="data-src")
             data_fields = Data(unique_id, product_id, product_name, price, summary, img)
-            scraper.store_data(data_fields.to_dict())
+            if bool(data_fields.to_dict()):
+                scraper.store_data(data_fields.to_dict())
+            else:
+                print("No Results!")
         except Exception as ex:
             print(ex)
             raise
 
 
 if __name__ == "__main__":
-    main()
+    #main()
+    path = os.path.join(os.getcwd(), "src")
+    print(path)
