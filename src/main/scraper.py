@@ -208,6 +208,4 @@ def main(iterate=False):
 
 
 if __name__ == "__main__":
-    #main()
-    path = os.path.join(os.getcwd(), "src")
-    print(path)
+    main()
