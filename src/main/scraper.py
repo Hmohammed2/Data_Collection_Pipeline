@@ -11,6 +11,8 @@ from tkinter import simpledialog
 import uuid as uid
 import boto3
 from botocore.exceptions import ClientError
+import pandas as pd
+from sqlalchemy import create_engine
 
 
 class Data:
@@ -32,6 +34,21 @@ class Data:
         return {"Unique iD": self.uuid, "Product ID": self.product_id, "Product": self.product_name,
                 "Price": self.price, "Summary": self.summary, "Images": self.images}
 
+    @staticmethod
+    def connect_to_rds_db():
+        DATABASE_TYPE = 'postgresql'
+        DBAPI = 'psycopg2'
+        ENDPOINT = 'aicore-db.cxukl3fkx5wf.eu-west-2.rds.amazonaws.com'  # Change it for your AWS endpoint
+        USER = 'postgres'
+        PASSWORD = 'n00bfighter101'
+        PORT = 5432
+        DATABASE = 'postgres'
+        engine = create_engine(f"{DATABASE_TYPE}+{DBAPI}://{USER}:{PASSWORD}@{ENDPOINT}:{PORT}/{DATABASE}")
+        try:
+            engine.connect()
+            print("Connection successful!")
+        except Exception. as ex:
+            print("No connection established!")
 
 class Scraper:
     default_url = "https://www.arcadeworlduk.com/"
@@ -134,9 +151,9 @@ class Scraper:
 
         return common
 
-    def extract_css_selector(self, soup_obj=None, text: str = None, attribute=None, counter=None):
+    def extract_css_selector(self, soup_obj=None, text: str = None, attribute=None, counter=None, key: str = ""):
         # initialise empty list
-        empty_list = []
+        empty_dict = {}
 
         soup_obj = self.return_soup() if soup_obj is None else soup_obj
 
@@ -155,15 +172,16 @@ class Scraper:
                 img = container[attribute]
                 with open(join(path, f"image{page_count}.jpeg"), "wb") as f:
                     f.write(requests.get(img).content)
-                    empty_list.append(container[attribute])
+                    empty_dict[key].append(container[attribute])
             else:
-                empty_list.append(container[attribute])
-        return empty_list
+                empty_dict[key].append(container[attribute])
+        return empty_dict
 
-    def extract_into_list(self, tag: str = None, class_str=None, href=False, index=None, soup=None, attrs=None):
+    def extract_into_list(self, tag: str = None, class_str=None, href=False, index=None, soup=None, attrs=None,
+                          key: str = ""):
         # Custom function built to extract data from website. Arguments correlate to the Beautifulsoup "find_all"
         # method. User can customize what they want to extract
-        empty_list = []
+        empty_dict = {}
 
         soup = self.return_soup() if soup is None else soup
 
@@ -177,24 +195,24 @@ class Scraper:
                 for container in all_tags:
                     name = container.text
                     if re.search(r"\w+[\s]|[£]\d+", name):
-                        empty_list.append(name)
+                        empty_dict[key] = name
             else:
                 for container in all_tags[index]:
                     name = container.text
                     if re.search(r"\w+[\s]|[£]\d+", name):
-                        empty_list.append(name)
+                        empty_dict[key].append(name)
 
-        return empty_list
+        return empty_dict
 
     @staticmethod
-    def generate_id(results: list = None):
+    def generate_id(results: dict = None):
         # generate unique global id with UUID package.
-        unique_id = []
+        unique_id = {}
 
         # loop through each record, creating a unique id
-        for id in enumerate(results):
+        for key, value in enumerate(results):
             uuidv4 = uid.uuid4()
-            unique_id.append(str(uuidv4))
+            unique_id["Unique ID"].append(str(uuidv4))
 
         return unique_id
 
@@ -203,20 +221,23 @@ def main(iterate=False):
     page_counter = 1
     scraper = Scraper(search_item="Sanwa")
     if iterate is True:
-        data_dict = {"Unique iD": [], "Product ID": [], "Product": [], "Price": [], "Summary": [], "Images": []}
+        data_dict = dict.fromkeys({"Unique iD", "Product ID", "Product", "Price", "Summary", "Images"})
+        count = 1
         while True:
             try:
-                count = sum([len(listelement) for listelement in data_dict["Unique iD"]])
                 page_counter += 1
                 data = scraper.return_soup(page_counter)
-                product_name = scraper.extract_into_list(tag="a", href=True, attrs={"data-event-type": True}, soup=data)
-                product_id = scraper.extract_css_selector(text="li.product > article", attribute='data-entity-id')
+                product_name = scraper.extract_into_list(tag="a", href=True, attrs={"data-event-type": True}, soup=data,
+                                                         key="Product")
+                product_id = scraper.extract_css_selector(text="li.product > article", attribute='data-entity-id',
+                                                          key="Product ID")
                 unique_id = scraper.generate_id(product_name)
                 price = scraper.extract_into_list(tag="span", class_str="price", attrs={"data-product-price-with"
-                                                                                        "-tax": True}, soup=data)
-                summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data)
+                                                                                        "-tax": True}, soup=data,
+                                                  key="Price")
+                summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data, key="Summary")
                 img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img",
-                                                   attribute="data-src", counter=count)
+                                                   attribute="data-src", counter=count, key="images")
                 data_fields = Data(unique_id, product_id, product_name, price, summary, img)
 
                 if bool(data_fields.to_dict()):
@@ -227,6 +248,7 @@ def main(iterate=False):
                     print("No Results!")
                     break
 
+                count = sum([len(listelement) for listelement in data_dict["Unique iD"]])
                 print(page_counter)
                 print(data_dict)
 
@@ -234,6 +256,10 @@ def main(iterate=False):
 
                     # Store as a json file
                     scraper.store_data(data_dict)
+
+                    # store data into a pandas Dataframe
+                    df = pd.DataFrame(data_dict)
+                    print(df)
 
                     # upload file onto s3 scalably
                     path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
@@ -266,4 +292,6 @@ def main(iterate=False):
 
 
 if __name__ == "__main__":
-    # main(True)
+    #main(True)
+    data = Data
+    db = Data.connect_to_rds_db()
