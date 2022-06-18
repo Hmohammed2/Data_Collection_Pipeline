@@ -12,7 +12,8 @@ import uuid as uid
 import boto3
 from botocore.exceptions import ClientError
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, exc
+from collections import defaultdict
 
 
 class Data:
@@ -30,9 +31,18 @@ class Data:
                f"Price={self.price}, Summary={self.summary}, Images={self.images}"
 
     def to_dict(self):
-        # Method converts list into dictionary which will be later used to store in json file
-        return {"Unique iD": self.uuid, "Product ID": self.product_id, "Product": self.product_name,
-                "Price": self.price, "Summary": self.summary, "Images": self.images}
+        # Method converts list into list of dictionaries which will be later used to store in json file as well as
+        # into a pandas dataframe
+        d = [
+            {"Uniwue ID": unique_id, "Product ID": prod_id, "Product": product_name,
+             "Price": price, "Summary": summary, "Images": images}
+
+            for unique_id, prod_id, product_name, price, summary, images in zip(self.uuid, self.product_id,
+                                                                                self.product_name, self.price,
+                                                                                self.summary, self.images)
+        ]
+
+        return d
 
     @staticmethod
     def connect_to_rds_db():
@@ -47,8 +57,12 @@ class Data:
         try:
             engine.connect()
             print("Connection successful!")
-        except Exception. as ex:
+        except exc.SQLAlchemyError as ex:
             print("No connection established!")
+            raise
+
+        return engine.connect()
+
 
 class Scraper:
     default_url = "https://www.arcadeworlduk.com/"
@@ -82,7 +96,7 @@ class Scraper:
             # catastrophic error. bail.
             raise SystemExit(e)
 
-    def store_data(self, data: dict):
+    def store_data(self, data):
         """
         Method stores raw data into a local directory. Working directory is found dynamically and stores it in a
         json file
@@ -97,7 +111,7 @@ class Scraper:
         if not is_exist:
             os.makedirs(path)
             print("New directory created!")
-        if not isinstance(data, dict):
+        if not isinstance(data, (dict, list)):
             raise TypeError
         else:
             with open(join(path, "data.json"), "w", encoding="utf-8") as f:
@@ -146,14 +160,14 @@ class Scraper:
     def get_parent_dir(path, levels=1):
         # function allows me to customise the amount of levels i want the parent directory to go back to.
         common = path
-        for i in range(levels+1):
+        for i in range(levels + 1):
             common = os.path.dirname(common)
 
         return common
 
     def extract_css_selector(self, soup_obj=None, text: str = None, attribute=None, counter=None, key: str = ""):
         # initialise empty list
-        empty_dict = {}
+        empty_dict = []
 
         soup_obj = self.return_soup() if soup_obj is None else soup_obj
 
@@ -172,16 +186,16 @@ class Scraper:
                 img = container[attribute]
                 with open(join(path, f"image{page_count}.jpeg"), "wb") as f:
                     f.write(requests.get(img).content)
-                    empty_dict[key].append(container[attribute])
+                    empty_dict.append(container[attribute])
             else:
-                empty_dict[key].append(container[attribute])
+                empty_dict.append(container[attribute])
         return empty_dict
 
     def extract_into_list(self, tag: str = None, class_str=None, href=False, index=None, soup=None, attrs=None,
                           key: str = ""):
         # Custom function built to extract data from website. Arguments correlate to the Beautifulsoup "find_all"
         # method. User can customize what they want to extract
-        empty_dict = {}
+        empty_dict = []
 
         soup = self.return_soup() if soup is None else soup
 
@@ -195,24 +209,24 @@ class Scraper:
                 for container in all_tags:
                     name = container.text
                     if re.search(r"\w+[\s]|[£]\d+", name):
-                        empty_dict[key] = name
+                        empty_dict.append(name)
             else:
                 for container in all_tags[index]:
                     name = container.text
                     if re.search(r"\w+[\s]|[£]\d+", name):
-                        empty_dict[key].append(name)
+                        empty_dict.append(name)
 
         return empty_dict
 
     @staticmethod
-    def generate_id(results: dict = None):
+    def generate_id(results: list = None):
         # generate unique global id with UUID package.
-        unique_id = {}
+        unique_id = []
 
         # loop through each record, creating a unique id
-        for key, value in enumerate(results):
+        for value in enumerate(results):
             uuidv4 = uid.uuid4()
-            unique_id["Unique ID"].append(str(uuidv4))
+            unique_id.append(str(uuidv4))
 
         return unique_id
 
@@ -220,12 +234,16 @@ class Scraper:
 def main(iterate=False):
     page_counter = 1
     scraper = Scraper(search_item="Sanwa")
+    l = []
     if iterate is True:
-        data_dict = dict.fromkeys({"Unique iD", "Product ID", "Product", "Price", "Summary", "Images"})
         count = 1
         while True:
             try:
+                # iterate through each page
                 page_counter += 1
+
+                # Web scraping process. Records will be stored intially into a list to then be converted into a
+                # list of dictionaries
                 data = scraper.return_soup(page_counter)
                 product_name = scraper.extract_into_list(tag="a", href=True, attrs={"data-event-type": True}, soup=data,
                                                          key="Product")
@@ -238,27 +256,30 @@ def main(iterate=False):
                 summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data, key="Summary")
                 img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img",
                                                    attribute="data-src", counter=count, key="images")
+
+                # Insantiate class variable with search results
                 data_fields = Data(unique_id, product_id, product_name, price, summary, img)
 
+                # Tests to see if there are any results, if so it creates a list of dictionaries for each record
                 if bool(data_fields.to_dict()):
                     results = data_fields.to_dict()
-                    for key, value in results.items():
-                        data_dict[key].append(value)
+                    for value in results:
+                        l.append(value)
                 else:
                     print("No Results!")
                     break
 
-                count = sum([len(listelement) for listelement in data_dict["Unique iD"]])
+                count = len(l)
+                print(l)
                 print(page_counter)
-                print(data_dict)
 
-                if page_counter == 5:
-
+                # Code will be limited to 100 results
+                if page_counter == 6:
                     # Store as a json file
-                    scraper.store_data(data_dict)
+                    scraper.store_data(l)
 
                     # store data into a pandas Dataframe
-                    df = pd.DataFrame(data_dict)
+                    df = pd.DataFrame(l)
                     print(df)
 
                     # upload file onto s3 scalably
@@ -278,20 +299,26 @@ def main(iterate=False):
             price = scraper.extract_into_list(tag="span", class_str="price", attrs={"data-product-price-with"
                                                                                     "-tax": True})
             summary = scraper.extract_into_list(tag="p", class_str="card-summary")
-            img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img", attribute="data-src")
+            img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img",
+                                               attribute="data-src")
             data_fields = Data(unique_id, product_id, product_name, price, summary, img)
+
             if bool(data_fields.to_dict()):
+                list_of_d = data_fields.to_dict()
                 scraper.store_data(data_fields.to_dict())
                 path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
+                df = pd.DataFrame(list_of_d)
+                print(df)
                 scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
             else:
                 print("No Results!")
+
         except Exception as ex:
             print(ex)
             raise
 
 
 if __name__ == "__main__":
-    #main(True)
-    data = Data
-    db = Data.connect_to_rds_db()
+    main(True)
+    # data = Data()
+    # db = Data.connect_to_rds_db()
