@@ -13,7 +13,6 @@ import boto3
 from botocore.exceptions import ClientError
 import pandas as pd
 from sqlalchemy import create_engine, exc
-from collections import defaultdict
 
 
 class Data:
@@ -43,25 +42,6 @@ class Data:
         ]
 
         return d
-
-    @staticmethod
-    def connect_to_rds_db():
-        DATABASE_TYPE = 'postgresql'
-        DBAPI = 'psycopg2'
-        ENDPOINT = 'aicore-db.cxukl3fkx5wf.eu-west-2.rds.amazonaws.com'  # Change it for your AWS endpoint
-        USER = 'postgres'
-        PASSWORD = 'n00bfighter101'
-        PORT = 5432
-        DATABASE = 'postgres'
-        engine = create_engine(f"{DATABASE_TYPE}+{DBAPI}://{USER}:{PASSWORD}@{ENDPOINT}:{PORT}/{DATABASE}")
-        try:
-            engine.connect()
-            print("Connection successful!")
-        except exc.SQLAlchemyError as ex:
-            print("No connection established!")
-            raise
-
-        return engine.connect()
 
 
 class Scraper:
@@ -136,6 +116,29 @@ class Scraper:
             logging.error(e)
             return False
         return True
+
+    @staticmethod
+    def connect_to_rds_db(df):
+        DATABASE_TYPE = 'postgresql'
+        DBAPI = 'psycopg2'
+        ENDPOINT = 'aicore-db.cxukl3fkx5wf.eu-west-2.rds.amazonaws.com'  # Change it for your AWS endpoint
+        USER = 'postgres'
+        PASSWORD = 'n00bfighter101'
+        PORT = 5432
+        DATABASE = 'postgres'
+        engine = create_engine(f"{DATABASE_TYPE}+{DBAPI}://{USER}:{PASSWORD}@{ENDPOINT}:{PORT}/{DATABASE}")
+        try:
+            engine.connect()
+            print("Connection successful!")
+        except exc.SQLAlchemyError as ex:
+            print("No connection established!")
+            raise
+
+        export_to_sql = df.to_sql('product dataset', engine, if_exists='replace')
+
+        df2 = pd.read_sql_table('product dataset', engine)
+
+        return df2
 
     def search_product(self):
         # Using the url i can use this to manipulate the search criteria to my liking.
@@ -242,7 +245,7 @@ def main(iterate=False):
                 # iterate through each page
                 page_counter += 1
 
-                # Web scraping process. Records will be stored intially into a list to then be converted into a
+                # Web scraping process. Records will be stored initially into a list to then be converted into a
                 # list of dictionaries
                 data = scraper.return_soup(page_counter)
                 product_name = scraper.extract_into_list(tag="a", href=True, attrs={"data-event-type": True}, soup=data,
@@ -255,7 +258,7 @@ def main(iterate=False):
                                                   key="Price")
                 summary = scraper.extract_into_list(tag="p", class_str="card-summary", soup=data, key="Summary")
                 img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img",
-                                                   attribute="data-src", counter=count, key="images")
+                                                   attribute="data-src", counter=count, key="images", soup_obj=data)
 
                 # Insantiate class variable with search results
                 data_fields = Data(unique_id, product_id, product_name, price, summary, img)
@@ -309,7 +312,9 @@ def main(iterate=False):
                 path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
                 df = pd.DataFrame(list_of_d)
                 print(df)
-                scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
+                postgres_db = scraper.connect_to_rds_db(df)
+                print(postgres_db.head())
+                # scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
             else:
                 print("No Results!")
 
@@ -319,6 +324,4 @@ def main(iterate=False):
 
 
 if __name__ == "__main__":
-    main(True)
-    # data = Data()
-    # db = Data.connect_to_rds_db()
+    main(False)
