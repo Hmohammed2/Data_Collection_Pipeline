@@ -257,7 +257,7 @@ def main(iterate=False):
                 img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img",
                                                    attribute="data-src", counter=count, key="images")
 
-                # Insantiate class variable with search results
+                # Insatantiate class variable with search results
                 data_fields = Data(unique_id, product_id, product_name, price, summary, img)
 
                 # Tests to see if there are any results, if so it creates a list of dictionaries for each record
@@ -309,7 +309,7 @@ def main(iterate=False):
                 path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
                 df = pd.DataFrame(list_of_d)
                 print(df)
-                scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
+                # scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
             else:
                 print("No Results!")
 
