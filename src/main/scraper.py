@@ -103,7 +103,7 @@ class Scraper:
         """
 
         # Dynamically create the raw data folder
-        path = f"{self.get_parent_dir(os.getcwd(), 1)}/raw_data"
+        path = f"{os.getcwd()}/raw_data"
 
         # File path is validated first to see if it exists
         is_exist = os.path.exists(path)
@@ -182,7 +182,7 @@ class Scraper:
             # checks if html string contains http to verify if attribute is either a href or an img attribute
             if "http" in container[attribute]:
                 page_count += 1
-                path = os.path.join(self.get_parent_dir(os.getcwd(), 1), "images")
+                path = os.path.join(os.getcwd(), "images")
                 img = container[attribute]
                 with open(join(path, f"image{page_count}.jpeg"), "wb") as f:
                     f.write(requests.get(img).content)
@@ -283,7 +283,7 @@ def main(iterate=False):
                     print(df)
 
                     # upload file onto s3 scalably
-                    path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
+                    path = f"{os.getcwd()}/raw_data"
                     scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
                     break
 
