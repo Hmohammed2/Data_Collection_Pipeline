@@ -130,8 +130,8 @@ For extracting the image URL this will be embedded in my extract method. Due to 
 ``````
 ## Milestone 5
 
-
 ## Milestone 6
+THis milestone will see us beginning to use the Amazon web services to store the data that we have scraped. Amazon Web Services (AWS) is the world’s most comprehensive and broadly adopted cloud platform, offering over 200 fully featured services from data centers globally
 
 ## Milestone 7
 
