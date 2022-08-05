@@ -18,10 +18,13 @@ This project will involve the implementation of an industry grade data collectio
 * AWS (Amazon Webservices)
 
 ## Milestone 1
+In this project, GitHub is used to track changes to our code and save them online in a GitHub repo.
+
+## Milestone 2
 This mainly involved deciding which website to scrape. I decided that i will be scraping the website Arcade-World. The user will enter the product name which will then 
 generate the results into both a pandas dataframe object as well as a json file type which can then be stored into the cloud via AWS (Amazon Web Services)
 
-## Milestone 2
+## Milestone 3
 This section will involve creating the scraper class. The class will include a number of methods to allow the user to extract the dataset they need through manipulating
 the html code. These are the methods that will be included within the class initially:
 ```python
@@ -61,7 +64,7 @@ class Data:
         return {"Unique iD": self.uuid, "Product ID": self.product_id, "Product": self.product_name,
                 "Price": self.price, "Summary": self.summary}
 ```
-## Milestone 3
+## Milestone 4
 The 5 data points that will be scraped on the site will be the following:
 - Product ID
 - Product Name
@@ -125,10 +128,11 @@ For extracting the image URL this will be embedded in my extract method. Due to 
                 empty_list.append(container[attribute])
         return empty_list
 ``````
-## Milestone 4
-
 ## Milestone 5
+
 
 ## Milestone 6
 
 ## Milestone 7
+
+## Milestone 8
