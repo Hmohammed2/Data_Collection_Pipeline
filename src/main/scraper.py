@@ -83,7 +83,11 @@ class Scraper:
         """
 
         # Dynamically create the raw data folder
+<<<<<<< HEAD
         path = f"{self.get_parent_dir(os.getcwd(),1)}/raw_data"
+=======
+        path = f"{os.getcwd()}/raw_data"
+>>>>>>> ec897c87b7c8e89b1532e65fd1f0fe7568964583
 
         # File path is validated first to see if it exists
         is_exist = os.path.exists(path)
@@ -185,7 +189,11 @@ class Scraper:
             # checks if html string contains http to verify if attribute is either a href or an img attribute
             if "http" in container[attribute]:
                 page_count += 1
+<<<<<<< HEAD
                 path = os.path.join(self.get_parent_dir(os.getcwd(),1), "images")
+=======
+                path = os.path.join(os.getcwd(), "images")
+>>>>>>> ec897c87b7c8e89b1532e65fd1f0fe7568964583
                 img = container[attribute]
                 with open(join(path, f"image{page_count}.jpeg"), "wb") as f:
                     f.write(requests.get(img).content)
@@ -260,7 +268,7 @@ def main(iterate=False):
                 img = scraper.extract_css_selector(text="li.product > article > figure > a > div > img",
                                                    attribute="data-src", counter=count, key="images", soup_obj=data)
 
-                # Insantiate class variable with search results
+                # Insatantiate class variable with search results
                 data_fields = Data(unique_id, product_id, product_name, price, summary, img)
 
                 # Tests to see if there are any results, if so it creates a list of dictionaries for each record
@@ -286,7 +294,7 @@ def main(iterate=False):
                     print(df)
 
                     # upload file onto s3 scalably
-                    path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
+                    path = f"{os.getcwd()}/raw_data"
                     scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
                     break
 
@@ -312,8 +320,11 @@ def main(iterate=False):
                 path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
                 df = pd.DataFrame(list_of_d)
                 print(df)
+<<<<<<< HEAD
                 # postgres_db = scraper.connect_to_rds_db(df)
                 # print(postgres_db.head())
+=======
+>>>>>>> ec897c87b7c8e89b1532e65fd1f0fe7568964583
                 # scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
             else:
                 print("No Results!")
