@@ -33,7 +33,7 @@ class Data:
         # Method converts list into list of dictionaries which will be later used to store in json file as well as
         # into a pandas dataframe
         d = [
-            {"Uniwue ID": unique_id, "Product ID": prod_id, "Product": product_name,
+            {"Unique ID": unique_id, "Product ID": prod_id, "Product": product_name,
              "Price": price, "Summary": summary, "Images": images}
 
             for unique_id, prod_id, product_name, price, summary, images in zip(self.uuid, self.product_id,
@@ -83,7 +83,7 @@ class Scraper:
         """
 
         # Dynamically create the raw data folder
-        path = f"{self.get_parent_dir(os.getcwd(), 1)}/raw_data"
+        path = f"{self.get_parent_dir(os.getcwd(),1)}/raw_data"
 
         # File path is validated first to see if it exists
         is_exist = os.path.exists(path)
@@ -185,7 +185,7 @@ class Scraper:
             # checks if html string contains http to verify if attribute is either a href or an img attribute
             if "http" in container[attribute]:
                 page_count += 1
-                path = os.path.join(self.get_parent_dir(os.getcwd(), 1), "images")
+                path = os.path.join(self.get_parent_dir(os.getcwd(),1), "images")
                 img = container[attribute]
                 with open(join(path, f"image{page_count}.jpeg"), "wb") as f:
                     f.write(requests.get(img).content)
@@ -312,8 +312,8 @@ def main(iterate=False):
                 path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
                 df = pd.DataFrame(list_of_d)
                 print(df)
-                postgres_db = scraper.connect_to_rds_db(df)
-                print(postgres_db.head())
+                # postgres_db = scraper.connect_to_rds_db(df)
+                # print(postgres_db.head())
                 # scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
             else:
                 print("No Results!")
