@@ -83,11 +83,8 @@ class Scraper:
         """
 
         # Dynamically create the raw data folder
-<<<<<<< HEAD
-        path = f"{self.get_parent_dir(os.getcwd(),1)}/raw_data"
-=======
-        path = f"{os.getcwd()}/raw_data"
->>>>>>> ec897c87b7c8e89b1532e65fd1f0fe7568964583
+
+        path = f"{os.getcwd(),1}/raw_data"
 
         # File path is validated first to see if it exists
         is_exist = os.path.exists(path)
@@ -123,11 +120,13 @@ class Scraper:
 
     @staticmethod
     def connect_to_rds_db(df):
+        username = input("Enter your username: ")
+        password = input("Enter your password: ")
         DATABASE_TYPE = 'postgresql'
         DBAPI = 'psycopg2'
         ENDPOINT = 'aicore-db.cxukl3fkx5wf.eu-west-2.rds.amazonaws.com'  # Change it for your AWS endpoint
-        USER = 'postgres'
-        PASSWORD = 'n00bfighter101'
+        USER =  str(username) # postgres
+        PASSWORD = str(password)
         PORT = 5432
         DATABASE = 'postgres'
         engine = create_engine(f"{DATABASE_TYPE}+{DBAPI}://{USER}:{PASSWORD}@{ENDPOINT}:{PORT}/{DATABASE}")
@@ -189,11 +188,7 @@ class Scraper:
             # checks if html string contains http to verify if attribute is either a href or an img attribute
             if "http" in container[attribute]:
                 page_count += 1
-<<<<<<< HEAD
-                path = os.path.join(self.get_parent_dir(os.getcwd(),1), "images")
-=======
                 path = os.path.join(os.getcwd(), "images")
->>>>>>> ec897c87b7c8e89b1532e65fd1f0fe7568964583
                 img = container[attribute]
                 with open(join(path, f"image{page_count}.jpeg"), "wb") as f:
                     f.write(requests.get(img).content)
@@ -244,7 +239,8 @@ class Scraper:
 
 def main(iterate=False):
     page_counter = 1
-    scraper = Scraper(search_item="Sanwa")
+    search_result = input("Type in product you wish to search for: ")
+    scraper = Scraper(search_item=search_result)
     l = []
     if iterate is True:
         count = 1
@@ -293,10 +289,17 @@ def main(iterate=False):
                     df = pd.DataFrame(l)
                     print(df)
 
-                    # upload file onto s3 scalably
-                    path = f"{os.getcwd()}/raw_data"
-                    scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
-                    break
+                    # Asks user if they want to upload the data into the Amazon Relational database in the cloud
+                    user_input = input("Do you want to upload your data into the cloud? (yes/no): ")
+                    while True:
+                        if user_input.lower() == "yes":
+                            postgres_db = scraper.connect_to_rds_db(df)
+                            print(postgres_db.head())
+                            scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
+                        elif user_input.lower() == "no":
+                            break
+                        else:
+                            continue
 
             except Exception as ex:
                 print(ex)
@@ -320,12 +323,17 @@ def main(iterate=False):
                 path = f"{scraper.get_parent_dir(os.getcwd(), 1)}/raw_data"
                 df = pd.DataFrame(list_of_d)
                 print(df)
-<<<<<<< HEAD
-                # postgres_db = scraper.connect_to_rds_db(df)
-                # print(postgres_db.head())
-=======
->>>>>>> ec897c87b7c8e89b1532e65fd1f0fe7568964583
-                # scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
+                user_input = input("Do you want to upload your data into the cloud? (yes/no): ")
+                # Asks user if they want to upload the data into the Amazon Relational database in the cloud
+                while True:
+                    if user_input.lower() == "yes":
+                        postgres_db = scraper.connect_to_rds_db(df)
+                        print(postgres_db.head())
+                        scraper.upload_file(f"{path}/data.json", "my-scrape-bucket")
+                    elif user_input.lower() == "no":
+                        break
+                    else:
+                        continue
             else:
                 print("No Results!")
 
@@ -335,4 +343,4 @@ def main(iterate=False):
 
 
 if __name__ == "__main__":
-    main(False)
+    main(True)
