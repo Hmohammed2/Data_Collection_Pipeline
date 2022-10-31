@@ -129,12 +129,13 @@ For extracting the image URL this will be embedded in my extract method. Due to 
         return empty_list
 ``````
 ## Milestone 5
+This milestone focused on unit testing for our public methods within our code. Unit testing according to techtarget.com is defined as "Unit testing is a software development process in which the smallest testable parts of an application, called units, are individually and independently scrutinized for proper operation"
 
 ## Milestone 6
 THis milestone will see us beginning to use the Amazon web services to store the data that we have scraped. Amazon Web Services (AWS) is the world’s most comprehensive and broadly adopted cloud platform, offering over 200 fully featured services from data centers globally
+
 
 ## Milestone 7
 This milestone mainly involves testing to see whether the scraper can scrape the maximum amount of data available without stopping in between or raising errors.
 To test this out, i attempted to make the scraper return 100 results. As there are 20 results in each page, i created a conditional statement which ran as the following: If the page number is less then 6, then continue running. Which would then scrape the first 5 pages and append the 20 results on each page into a dictionary giving me the 100 results needed. Once this all worked out, i then removed the conditional formula and made it so that the scraper works on each available page scraping everything that was available.
 
-## Milestone 8
